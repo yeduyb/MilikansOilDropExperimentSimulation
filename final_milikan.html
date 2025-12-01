@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Millikan Oil Drop Simulation</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="cdn.jsdelivr.net"></script>
+    <style>
+      :root {
+        --plate-height: 20px;
+        --chamber-width: 700px;
+        --chamber-height: 500px;
+        --xray-height: 8px;
+        --xray-color: #9b59b6;
+        --plate-color: #34495e;
+        --bg: #f7f9fc;
+        --droplet-color: #1abc9c;
+        --hover-color: #f39c12;
+        --rising-color: #3498db;
+        --falling-color: #e74c3c;
+      }
+
+      body {
+        font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        background: var(--bg);
+        margin: 0;
+        padding: 20px;
+        color: #223;
+      }
+
+      h1 {
+        font-size: 22px;
+        margin-bottom: 8px;
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+        align-items: start; /* Change to 'start' to align items to the top */
+        /* --- NEW LINES TO ENFORCE MAX HEIGHT --- */
+        max-height: 250px; /* Lock the maximum height of the entire control area */
+        overflow: hidden; /* Hide anything that might spill over */
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+        align-items: start; /* Change to 'start' to align items to the top */
+        /* --- NEW LINES TO ENFORCE MAX HEIGHT --- */
+        max-height: 250px; /* Lock the maximum height of the entire control area */
+        overflow: hidden; /* Hide anything that might spill over */
+      }
+
+      .controls .panel:nth-child(2) {
+        /* Target the second panel in .controls (the Droplet data panel) */
+        min-height: 250px; /* Ensure a minimum height for alignment */
+        max-height: 250px; /* Set a maximum height to prevent overflow into the chamber area */
+        display: flex; /* Use flexbox to organize content vertically */
+        flex-direction: column;
+      }
+
+      .panel {
+        background: white;
+        border: 1px solid #dfe6ee;
+        border-radius: 8px;
+        padding: 12px;
+      }
+
+      .panel h2 {
+        font-size: 16px;
+        margin: 0 0 8px 0;
+      }
+
+      .field {
+        display: grid;
+        grid-template-columns: 150px 1fr 80px;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      input[type="range"] {
+        width: 100%;
+      }
+
+      button {
+        background: #2c3e50;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #7f8c8d;
+      }
+
+      .sim-container {
+        display: grid;
+        grid-template-columns: var(--chamber-width) 1fr;
+        gap: 16px;
+      }
+
+      .chamber {
+        position: relative;
+        width: var(--chamber-width);
+        height: var(--chamber-height);
+        border: 2px solid #ccd6e0;
+        border-radius: 10px;
+        background: #ffffff;
+        overflow: hidden;
+      }
+
+      .plate {
+        position: absolute;
+        width: 100%;
+        height: var(--plate-height);
+        background: var(--plate-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ecf0f1;
+        font-size: 12px;
+        letter-spacing: 0.5px;
+        user-select: none;
+      }
+
+      .plate.top {
+        top: 0;
+      }
+      .plate.bottom {
+        bottom: 0;
+      }
+
+      .xray {
+        position: absolute;
+        width: 100%;
+        height: var(--xray-height);
+        top: calc(50% - var(--xray-height) / 2);
+        background: linear-gradient(
+          90deg,
+          rgba(155, 89, 182, 0.15),
+          rgba(155, 89, 182, 0.45),
+          rgba(155, 89, 182, 0.15)
+        );
+        box-shadow: 0 0 8px rgba(155, 89, 182, 0.5);
+      }
+
+      .xray-label {
+        position: absolute;
+        top: calc(50% + 10px);
+        right: 8px;
+        font-size: 12px;
+        color: #6c5a7b;
+        background: rgba(155, 89, 182, 0.08);
+        padding: 4px 6px;
+        border-radius: 4px;
+        border: 1px solid rgba(155, 89, 182, 0.3);
+      }
+
+      .droplet {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 0 6px rgba(26, 188, 156, 0.5);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+      }
+
+      .legend {
+        font-size: 12px;
+        display: flex;
+        gap: 10px;
+        margin-top: 6px;
+        align-items: center;
+      }
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .legend i {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 6px 8px;
+        border-bottom: 1px solid #eef3f8;
+      }
+      th {
+        background: #f1f5fa;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      .table-wrap {
+        max-height: calc(var(--chamber-height) - 40px);
+        overflow: auto;
+        border: 1px solid #dfe6ee;
+        border-radius: 8px;
+        background: white;
+      }
+      .summary {
+        margin-top: 8px;
+        font-size: 13px;
+        padding: 8px;
+        border-radius: 6px;
+        background: #f8fafc;
+        border: 1px solid #ebf0f5;
+      }
+
+      .note {
+        font-size: 12px;
+        color: #667;
+        margin-top: 8px;
+      }
+
+            /* === COMMON STYLE FOR NOTES PANEL === */
+      .panel.notes {
+        background: linear-gradient(180deg, #ffffff, #f6f9fc);
+        border: 1px solid #dbe4ef;
+        border-radius: 10px;
+        padding: 16px 18px;
+      }
+
+      /* Headings inside the notes panel */
+      .panel.notes h2 {
+        font-size: 17px;
+        margin-bottom: 12px;
+        color: #2c3e50;
+      }
+
+            /* Fixes disproportionate sizing and spacing in notes lists */
+      .panel.notes li {
+        font-size: 13px; /* Forces list items to be the same size as the main text */
+        margin: 4px 0;
+        line-height: 1.5;
+      }
+
+      /* Unified note block style */
+      .panel.notes .note {
+        font-size: 13px;
+        line-height: 1.6;
+        color: #445;
+        background: #f8fafc;
+        border: 1px solid #e3eaf3;
+        border-left: 4px solid #3498db;
+        padding: 10px 12px;
+        border-radius: 6px;
+        margin-bottom: 10px;
+      }
+
+      /* Lists inside notes */
+      .panel.notes ul {
+        margin: 6px 0 6px 18px;
+        padding: 0;
+      }
+
+      .panel.notes li {
+        margin-bottom: 4px;
+      }
+
+      /* Bold emphasis inside notes */
+      .panel.notes strong {
+        color: #1f2d3d;
+      }
+
+    </style>
+  </head>
+  <body>
+    <h1>Millikan’s Oil Drop Experiment — Interactive Simulation</h1>
+
+    <div class="controls">
+      <div class="panel">
+        <h2>Controls</h2>
+
+        <div class="field">
+          <label for="voltage"><strong>Voltage (V):</strong></label>
+          <input
+            id="voltage"
+            type="range"
+            min="0"
+            max="500"
+            step="10"
+            value="0"
+          />
+          <input
+            id="voltageValue"
+            type="number"
+            min="0"
+            max="500"
+            step="10"
+            value="0"
+          />
+        </div>
+
+        <div class="field">
+          <label><strong>Spray droplets:</strong></label>
+          <button id="sprayOne">Spray 1</button>
+          <button id="sprayFive" class="secondary">Spray 5</button>
+        </div>
+
+        <div class="field">
+          <label><strong>X-ray exposure:</strong></label>
+          <button id="exposeXray">X-ray OFF</button>
+          <!-- <span class="note"
+            >Adds random electrons to droplets overlapping the X-ray band.</span
+          > -->
+        </div>
+
+        <div class="legend">
+          <span><i style="background: var(--droplet-color)"></i> neutral</span>
+          <span><i style="background: var(--rising-color)"></i> rising</span>
+          <span><i style="background: var(--falling-color)"></i> falling</span>
+          <span><i style="background: var(--hover-color)"></i> hovering</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Droplet data</h2>
+        <div class="table-wrap">
+          <table id="dropletTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Mass (kg)</th>
+                <th>Charge (C)</th>
+                <th>Electrons (n)</th>
+                <th>Status</th>
+                <th>y (m)</th>
+                <th>v (m/s)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="summary" id="summary">
+          Charge quantization (GCD of electron counts): —
+        </div>
+      </div>
+    </div>
+
+    <div class="sim-container">
+      <div class="chamber" id="chamber">
+        <div class="plate top">Top plate (+)</div>
+        <div class="plate bottom">Bottom plate (−)</div>
+        <div class="xray"></div>
+        <div class="xray-label">X-ray source</div>
+      </div>
+
+      <div class="panel notes">
+        <h2>Experiment Notes & Simulation Mechanics</h2>
+        
+        <p class="note">
+          <strong>1. Fundamental Physics: Charge Quantization</strong>
+          The Millikan experiment proved that electric charge (<em>q</em>) is not continuous; it exists only as integer multiples (<em>n</em>) of the elementary charge  (<em>e</em>): Q = ne. The GCD calculation in the data table verifies this principle.
+        </p>
+
+        <p class="note">
+          <strong>2. Forces and Field Direction</strong>
+          Two main forces act on the droplet :
+          <ul>
+            <li><strong>Gravitational Force</strong> (Fg): Always acts <strong>downwards</strong>.</li>
+            <li><strong>Electric Force</strong> (Fe): Acts <strong>upwards</strong> because our droplets are negatively charged (q < 0) and the field is downwards.</li>
+          </ul>
+        </p>
+
+        <p class="note">
+          <strong>3. Simulation Mechanics: X-rays and Motion</strong>
+          <ul>
+            <li><strong>Neutral Droplets:</strong> Fall at a constant speed, unaffected by voltage.</li>
+            <li><strong>X-ray Logic:</strong> Charging (gaining negative electrons) only occurs if the X-ray is ON AND the neutral droplet passes through the visible X-ray band.</li>
+            <li><strong>Motion Control (Charged Droplets):</strong>
+              <ul style="margin-top: 4px;">
+                <li><strong>V &lt; 300 V:</strong> Droplet <strong>falls</strong> (slowed by Fe).</li>
+                <li><strong>V = 300 V:</strong> Droplet <strong>hovers</strong> (Fg = Fe).</li>
+                <li><strong>V &gt; 300 V:</strong> Droplet <strong>rises</strong>.</li>
+              </ul>
+            </li>
+          </ul>
+        </p>
+      </div>
+    </div>
+
+    <script>
+      (() => {
+        const g = 0.01;
+        const eCharge = 1.602e-19;
+        const plateSeparation = 0.02;
+
+        const chamber = document.getElementById("chamber");
+        const chamberPxHeight = parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--chamber-height"
+          )
+        );
+        const platePxHeight = parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--plate-height"
+          )
+        );
+        const xrayPxHeight = parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--xray-height"
+          )
+        );
+        const usablePxHeight = chamberPxHeight - 2 * platePxHeight;
+
+        const metersPerPixel = plateSeparation / usablePxHeight;
+        const dt = 0.001;
+
+        // First-version behavior constants
+        const centerY_m = plateSeparation / 2;
+        const centerPullStrength = 0.25;
+
+        // UI
+        const voltageSlider = document.getElementById("voltage");
+        const voltageValue = document.getElementById("voltageValue");
+        const sprayOneBtn = document.getElementById("sprayOne");
+        const sprayFiveBtn = document.getElementById("sprayFive");
+        const exposeBtn = document.getElementById("exposeXray");
+        const tableBody = document.querySelector("#dropletTable tbody");
+        const summaryEl = document.getElementById("summary");
+
+        const droplets = [];
+        let dropletCounter = 1;
+        let voltage = 0;
+
+        function randIn(min, max) {
+          return Math.random() * (max - min) + min;
+        }
+
+        function createDroplet() {
+          const mass = randIn(1e-15, 5e-15);
+          const xPx = randIn(20, chamber.clientWidth - 20);
+          const yPx = platePxHeight + randIn(10, usablePxHeight - 10);
+          const y = (yPx - platePxHeight) * metersPerPixel;
+
+          const el = document.createElement("div");
+          el.className = "droplet";
+          el.style.background = "var(--droplet-color)";
+          el.style.left = `${xPx}px`;
+          el.style.top = `${yPx}px`;
+          chamber.appendChild(el);
+
+          droplets.push({
+            id: dropletCounter++,
+            mass,
+            qElectrons: 0,
+            q: 0,
+            xPx,
+            y,
+            v: 0,
+            a: 0,
+            el,
+            status: "neutral",
+          });
+        }
+
+        function spray(n = 1) {
+          for (let i = 0; i < n; i++) createDroplet();
+        }
+
+        function setVoltage(v) {
+          voltage = Math.max(0, Math.min(500, Number(v) || 0)); // restrict 0–500
+          voltageSlider.value = voltage;
+          voltageValue.value = voltage;
+        }
+
+        voltageSlider.addEventListener("input", () =>
+          setVoltage(voltageSlider.value)
+        );
+        voltageValue.addEventListener("input", () =>
+          setVoltage(voltageValue.value)
+        );
+
+        let xrayOn = false; // Must be outside the event listener
+        let xrayEl; // Variable to hold the X-ray element
+
+        // Locate the X-ray element after the chamber is loaded
+        document.addEventListener("DOMContentLoaded", () => {
+          xrayEl = document.querySelector(".xray");
+        });
+
+        exposeBtn.addEventListener("click", () => {
+          xrayOn = !xrayOn;
+          exposeBtn.textContent = xrayOn ? "X-ray ON (ionizing)" : "X-ray OFF";
+        });
+
+        sprayOneBtn.addEventListener("click", () => spray(1));
+        sprayFiveBtn.addEventListener("click", () => spray(5));
+
+        // --- PHYSICS UPDATE FUNCTION DEFINITION ---
+        // --- PHYSICS UPDATE FUNCTION DEFINITION ---
+        // --- PHYSICS UPDATE FUNCTION DEFINITION ---
+        function updatePhysics() {
+          const max_v = 0.05; // Maximum speed (m/s)
+
+          // Calculate X-ray band boundaries in meters (y=0 at top plate)
+          const chamberCenterPx = chamberPxHeight / 2;
+          const xrayTopPx = chamberCenterPx - xrayPxHeight / 2;
+          const xrayBottomPx = chamberCenterPx + xrayPxHeight / 2;
+
+          const xrayTop_m = (xrayTopPx - platePxHeight) * metersPerPixel;
+          const xrayBottom_m = (xrayBottomPx - platePxHeight) * metersPerPixel;
+
+          droplets.forEach((d) => {
+            // ⚡ CONTINUOUS CHARGING CHECK: Only charge if neutral AND in the beam
+            if (xrayOn && d.qElectrons === 0) {
+              if (d.y >= xrayTop_m && d.y <= xrayBottom_m) {
+                // Charge the droplet with a random negative charge (-1e to -4e)
+                d.qElectrons = -Math.floor(randIn(1, 5));
+                d.q = d.qElectrons * eCharge;
+                // Once charged, it will enter the 'Charged Droplet Motion' block below.
+              }
+            }
+
+            // --- DROPLET MOTION LOGIC ---
+
+            if (d.qElectrons === 0) {
+              // 1. NEUTRAL DROPLET MOTION: Always falls at max speed regardless of Voltage
+              d.v = max_v;
+              d.status = "falling";
+              d.el.style.background = "var(--droplet-color)"; // Neutral color
+            } else if (voltage < 300) {
+              // 2. CHARGED DROPLET MOTION (Falling/Slowed): 0V to 300V
+              const fraction = voltage / 300; // 0 at 0V, 1 at 300V
+              d.v = max_v * (1 - fraction);
+              d.status = "falling";
+              d.el.style.background = "var(--falling-color)";
+            } else if (voltage === 300) {
+              // 3. CHARGED DROPLET MOTION (Hovering): At 300V
+              d.v = 0;
+              d.status = "hovering";
+              d.el.style.background = "var(--hover-color)";
+            } else if (voltage > 300) {
+              // 4. CHARGED DROPLET MOTION (Rising): 300V to 500V
+              const fraction = (voltage - 300) / 200; // 0 at 300V, 1 at 500V
+              d.v = -max_v * fraction; // Negative velocity for rising
+              d.status = "rising";
+              d.el.style.background = "var(--rising-color)";
+            }
+
+            // Update position based on velocity and time step (dt)
+            d.y += d.v * dt;
+
+            // Boundaries (prevent droplets from leaving the chamber)
+            if (d.y < 0) {
+              d.y = 0;
+              d.v = 0;
+            }
+            if (d.y > plateSeparation) {
+              d.y = plateSeparation;
+              d.v = 0;
+            }
+
+            // Apply new position (converts meters (d.y) back to pixels for display)
+            d.el.style.top = `${platePxHeight + d.y / metersPerPixel}px`;
+          });
+        }
+        // --- END PHYSICS UPDATE FUNCTION DEFINITION ---
+
+        function gcd(a, b) {
+          while (b) {
+            [a, b] = [b, a % b];
+          }
+          return a;
+        }
+
+        // FIX: Handles the absolute value of electron counts for GCD
+        function gcdArray(arr) {
+          if (arr.length === 0) return 0;
+          return arr.reduce((g, n) => gcd(g, Math.abs(n)), Math.abs(arr[0]));
+        }
+
+        function formatNum(n, sig = 3) {
+          return n.toExponential(sig);
+        }
+
+        function updateTable() {
+          tableBody.innerHTML = "";
+          droplets.forEach((d) => {
+            const row = document.createElement("tr");
+            const vals = [
+              d.id,
+              formatNum(d.mass),
+              formatNum(d.q),
+              d.qElectrons,
+              d.status,
+              formatNum(d.y),
+              formatNum(d.v),
+            ];
+            vals.forEach((v) => {
+              const td = document.createElement("td");
+              td.textContent = v;
+              row.appendChild(td);
+            });
+            tableBody.appendChild(row);
+          });
+
+          // Filter for non-zero electron counts (charged droplets)
+          const counts = droplets
+            .map((d) => d.qElectrons)
+            .filter((n) => n !== 0);
+
+          if (counts.length === 0) {
+            summaryEl.textContent = "Charge quantization: -"; // Use simple hyphen
+          } else {
+            // Calculate GCD from absolute electron counts
+            function gcd(a, b) {
+              while (b) {
+                [a, b] = [b, a % b];
+              }
+              return a;
+            }
+            function gcdArray(arr) {
+              if (arr.length === 0) return 0;
+              return arr.reduce(
+                (g, n) => gcd(g, Math.abs(n)),
+                Math.abs(arr[0])
+              );
+            }
+
+            const g = gcdArray(counts);
+
+            // Use the accepted physical value of the elementary charge for display
+            const accepted_e = 1.602e-19;
+            const simulatedQuantizedCharge = g * accepted_e;
+
+            // Cleaned display: No special math characters, only standard text and <br>
+            summaryEl.innerHTML = `
+              Charge quantization: GCD(|n|) = ${g} <br>
+              Simulated minimum charge: ${formatNum(
+                Math.abs(simulatedQuantizedCharge)
+              )} C <br>
+              Accepted elementary charge (e): ${formatNum(accepted_e)} C `;
+          }
+        }
+
+        setInterval(updatePhysics, dt * 1000);
+        setInterval(updateTable, 1000);
+
+        setVoltage(0);
+        spray(3);
+      })();
+    </script>
+  </body>
+</html>
