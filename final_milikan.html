@@ -426,11 +426,11 @@
         const metersPerPixel = plateSeparation / usablePxHeight;
         const dt = 0.001;
 
-        // First-version behavior constants
+        
         const centerY_m = plateSeparation / 2;
         const centerPullStrength = 0.25;
 
-        // UI
+        
         const voltageSlider = document.getElementById("voltage");
         const voltageValue = document.getElementById("voltageValue");
         const sprayOneBtn = document.getElementById("sprayOne");
@@ -491,10 +491,10 @@
           setVoltage(voltageValue.value)
         );
 
-        let xrayOn = false; // Must be outside the event listener
-        let xrayEl; // Variable to hold the X-ray element
+        let xrayOn = false; 
+        let xrayEl; 
 
-        // Locate the X-ray element after the chamber is loaded
+        
         document.addEventListener("DOMContentLoaded", () => {
           xrayEl = document.querySelector(".xray");
         });
@@ -507,13 +507,13 @@
         sprayOneBtn.addEventListener("click", () => spray(1));
         sprayFiveBtn.addEventListener("click", () => spray(5));
 
-        // --- PHYSICS UPDATE FUNCTION DEFINITION ---
-        // --- PHYSICS UPDATE FUNCTION DEFINITION ---
-        // --- PHYSICS UPDATE FUNCTION DEFINITION ---
+        
+        
+        
         function updatePhysics() {
-          const max_v = 0.05; // Maximum speed (m/s)
+          const max_v = 0.05; 
 
-          // Calculate X-ray band boundaries in meters (y=0 at top plate)
+          
           const chamberCenterPx = chamberPxHeight / 2;
           const xrayTopPx = chamberCenterPx - xrayPxHeight / 2;
           const xrayBottomPx = chamberCenterPx + xrayPxHeight / 2;
@@ -522,46 +522,46 @@
           const xrayBottom_m = (xrayBottomPx - platePxHeight) * metersPerPixel;
 
           droplets.forEach((d) => {
-            // ⚡ CONTINUOUS CHARGING CHECK: Only charge if neutral AND in the beam
+            
             if (xrayOn && d.qElectrons === 0) {
               if (d.y >= xrayTop_m && d.y <= xrayBottom_m) {
-                // Charge the droplet with a random negative charge (-1e to -4e)
+                
                 d.qElectrons = -Math.floor(randIn(1, 5));
                 d.q = d.qElectrons * eCharge;
-                // Once charged, it will enter the 'Charged Droplet Motion' block below.
+                
               }
             }
 
-            // --- DROPLET MOTION LOGIC ---
+            
 
             if (d.qElectrons === 0) {
-              // 1. NEUTRAL DROPLET MOTION: Always falls at max speed regardless of Voltage
+              
               d.v = max_v;
               d.status = "falling";
-              d.el.style.background = "var(--droplet-color)"; // Neutral color
+              d.el.style.background = "var(--droplet-color)"; 
             } else if (voltage < 300) {
-              // 2. CHARGED DROPLET MOTION (Falling/Slowed): 0V to 300V
-              const fraction = voltage / 300; // 0 at 0V, 1 at 300V
+              
+              const fraction = voltage / 300; 
               d.v = max_v * (1 - fraction);
               d.status = "falling";
               d.el.style.background = "var(--falling-color)";
             } else if (voltage === 300) {
-              // 3. CHARGED DROPLET MOTION (Hovering): At 300V
+              
               d.v = 0;
               d.status = "hovering";
               d.el.style.background = "var(--hover-color)";
             } else if (voltage > 300) {
-              // 4. CHARGED DROPLET MOTION (Rising): 300V to 500V
-              const fraction = (voltage - 300) / 200; // 0 at 300V, 1 at 500V
-              d.v = -max_v * fraction; // Negative velocity for rising
+              
+              const fraction = (voltage - 300) / 200; 
+              d.v = -max_v * fraction; 
               d.status = "rising";
               d.el.style.background = "var(--rising-color)";
             }
 
-            // Update position based on velocity and time step (dt)
+            
             d.y += d.v * dt;
 
-            // Boundaries (prevent droplets from leaving the chamber)
+            
             if (d.y < 0) {
               d.y = 0;
               d.v = 0;
@@ -571,11 +571,11 @@
               d.v = 0;
             }
 
-            // Apply new position (converts meters (d.y) back to pixels for display)
+            
             d.el.style.top = `${platePxHeight + d.y / metersPerPixel}px`;
           });
         }
-        // --- END PHYSICS UPDATE FUNCTION DEFINITION ---
+        
 
         function gcd(a, b) {
           while (b) {
@@ -584,7 +584,7 @@
           return a;
         }
 
-        // FIX: Handles the absolute value of electron counts for GCD
+        
         function gcdArray(arr) {
           if (arr.length === 0) return 0;
           return arr.reduce((g, n) => gcd(g, Math.abs(n)), Math.abs(arr[0]));
@@ -615,7 +615,7 @@
             tableBody.appendChild(row);
           });
 
-          // Filter for non-zero electron counts (charged droplets)
+          
           const counts = droplets
             .map((d) => d.qElectrons)
             .filter((n) => n !== 0);
@@ -623,7 +623,7 @@
           if (counts.length === 0) {
             summaryEl.textContent = "Charge quantization: -"; // Use simple hyphen
           } else {
-            // Calculate GCD from absolute electron counts
+            
             function gcd(a, b) {
               while (b) {
                 [a, b] = [b, a % b];
@@ -640,11 +640,11 @@
 
             const g = gcdArray(counts);
 
-            // Use the accepted physical value of the elementary charge for display
+            
             const accepted_e = 1.602e-19;
             const simulatedQuantizedCharge = g * accepted_e;
 
-            // Cleaned display: No special math characters, only standard text and <br>
+            
             summaryEl.innerHTML = `
               Charge quantization: GCD(|n|) = ${g} <br>
               Simulated minimum charge: ${formatNum(
